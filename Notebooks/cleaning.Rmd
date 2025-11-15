@@ -1,0 +1,77 @@
+---
+title: "Limpieza de los datos"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  message = FALSE,
+	warning = FALSE,
+	error = F,
+  results='hide'
+)
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(here)
+library(visdat)
+```
+
+
+```{r}
+#Haciendo la carga de los datos
+print(here())
+```
+
+
+
+```{r}
+data_fosil <- read.csv(here("Data","Raw","share-electricity-fossil-fuels","share-electricity-fossil-fuels.csv"))
+data_renewables <- read.csv(here("Data","Raw","share-electricity-renewables","share-electricity-renewables.csv"))
+data_income <- read.csv(here("Data","Raw","world-bank-income-groups", "world-bank-income-groups.csv"))
+```
+
+
+
+
+```{r}
+data_final <- data_fosil %>%
+  left_join(data_renewables,
+            by = c("Entity", "Year", "Code")) %>% 
+  left_join(data_income,
+            by = c("Entity", "Year", "Code")) %>% 
+  drop_na() %>%
+  select("Entity", "Code", "Year","Fossil.fuels.....electricity", "Renewables.....electricity", "World.Bank.s.income.classification") %>%
+    rename(Fossil_Fuels = Fossil.fuels.....electricity,
+             Renewables = Renewables.....electricity,
+             Income_Group = World.Bank.s.income.classification)
+
+```
+
+
+```{r}
+head(data_final)
+```
+
+
+
+```{r}
+vis_dat(data_final)
+```
+
+```{r}
+vis_miss(data_final)
+```
+
+```{r}
+
+```
+
+```{r}
+#Guardando los datos limpios
+write.csv(data_final, here("Data", "Clean", "data.csv"), row.names = TRUE)
+```
