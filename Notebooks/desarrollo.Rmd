@@ -259,7 +259,7 @@ ggplot(disp_cont,
 disp_cont_resumen <- disp_cont 
 
 ggplot(disp_cont_resumen,
-       aes(x = Continent, y = sd_renew)) +
+       aes(x = Continent, y = sd_renew, color = Continent)) +
   geom_boxplot() +
   labs(
     title = "Dispersión del % de renovables entre países por continente",
