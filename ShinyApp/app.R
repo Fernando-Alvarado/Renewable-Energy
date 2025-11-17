@@ -13,29 +13,38 @@ library(knitr)
 #Paqueta
 source(here("ShinyApp", "modulos", "funcion_main.R")) # Funcion para traer las graficas
 
-#-----------------------------------------------------------------------------
-datos <- read.csv(here("Data", "Clean", "data.csv"))
+#--------Carga de datos---------------------------------------------------------------------
+datos <- read.csv(here("Data", "Clean", "data.csv")) 
+#------------------------------------------------------------------------------------------------ 
 
+#    
 
 
 ui <- fluidPage(
   titlePanel("Titulo tentativo (Producción de energia )"),
 
   sidebarLayout(
-   
     sidebarPanel(
         h3("Filtros"),
         #Para seleccionar el año
         numericInput( "anio", "Año", value = 2024, min = 2000, max = 2024 ),
         #Para seleccionar que medida
-        selectizeInput( "medida", "Selecciona medidas descriptivas", list("Media" = "mean", "Desviacion" = "sd"), multiple = FALSE ),
+        selectizeInput( "medida", "Selecciona medidas descriptivas", list("Media" = "mean", "Desviacion" = "sd"), multiple = FALSE )
     ),
 
     mainPanel(
-      plotOutput("graf1"),   # <--- AQUÍ se mostrará output$graf1
-      plotOutput("graf2")    # <--- y aquí output$graf2 (si lo usas)
-    )
+      #Graficas que hiciero Diego y Brayan
+      fluidRow(
+        column(6, plotOutput("graf1")),
+        column(6, plotOutput("graf2"))
+    ),
+
+    fluidRow(
+        column(6, plotOutput("graf3")),
+        column(6, plotOutput("graf4"))
+    ) 
   )
+)
 )
 
 server <- function(input, output, session) {
@@ -48,16 +57,25 @@ server <- function(input, output, session) {
     )
   })
 
-  # Si antes hacías:  prueba <- funcion_main(...); prueba[1]
-  # ahora es:
+  #Haciendo la primera grafica:
   output$graf1 <- renderPlot({
-    graficas()[[1]]            # [[1]] para obtener la primera gráfica
+    graficas()[[1]]            
   })
 
   # Y la segunda:
   output$graf2 <- renderPlot({
-    graficas()[[2]]            # [[2]] para la segunda gráfica
+    graficas()[[2]]            
   })
+
+  output$graf3 <- renderPlot({
+    graficas()[[3]]            
+  })
+  
+  output$graf4 <- renderPlot({
+    graficas()[[4]]            
+  })
+
+ 
     
  
 

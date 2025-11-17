@@ -12,7 +12,8 @@ ui <- fluidPage(
 
     mainPanel(
       plotOutput("hist"),
-      verbatimTextOutput("summary")
+      verbatimTextOutput("summary"),
+       textOutput("texto")    # <--- y aquí output$texto (si lo usas)
     )
   )
 )
@@ -43,6 +44,12 @@ server <- function(input, output, session) {
   output$summary <- renderPrint({
     summary(datos())
   })
+
+   output$texto <- renderText({
+    name <- input$medida
+    paste("Has seleccionado la medida:", name)
+  })
+
 }
 
 shinyApp(ui, server)

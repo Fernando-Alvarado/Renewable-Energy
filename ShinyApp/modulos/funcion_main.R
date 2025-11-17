@@ -104,7 +104,11 @@ funcion_main <- function(datos, año1 = 2024, medida = "sd"){
     dplyr::filter(Year >= 2000) %>% 
     dplyr::group_by(Year, Income_Group) %>%
     dplyr::summarise(
-      Renewables_sd = sd(Renewables, na.rm = TRUE),
+      Renewables_sd = ifelse(
+        medida == "mean",
+        mean(Renewables, na.rm = TRUE),
+        sd(Renewables, na.rm = TRUE)
+      ),
       .groups = "drop"
     ) %>% 
     dplyr::mutate(
@@ -156,10 +160,11 @@ funcion_main <- function(datos, año1 = 2024, medida = "sd"){
     dplyr::summarise(
 
       #Aqui pon la decision de la medida   -----------------------------------------------------------------------------
-      
-      sd_renew = sd(Renewables, na.rm = TRUE),
-
-
+      sd_renew = ifelse(
+        medida == "mean",
+        mean(Renewables, na.rm = TRUE),
+        sd(Renewables, na.rm = TRUE)
+      ),
       n_paises = dplyr::n(),
       .groups = "drop"
     ) %>%
@@ -192,7 +197,3 @@ funcion_main <- function(datos, año1 = 2024, medida = "sd"){
   return(resultado)
 }
 
-
-
-
-# Cargando la base con los datos limpios
