@@ -26,8 +26,8 @@ library(rpart.plot)
 library(Metrics)
 library(knitr)
 
-# rm(list = ls())
-# gc(reset = TRUE)
+rm(list = ls())
+gc(reset = TRUE)
 ```
 
 
@@ -257,9 +257,9 @@ ggplot(disp_cont,
 ### Los países de bajos ingresos presentan una desviación estándar consistentemente baja a lo largo del periodo analizado, lo que refleja una estabilidad en la adopción de energías renovables entre los miembros del grupo. Esta homogeneidad sugiere que, a diferencia de los grupos de ingresos medios —donde se observan trayectorias divergentes entre países líderes y rezagados—, las naciones de bajos ingresos comparten barreras estructurales similares que limitan de manera uniforme su transición energética.
 
 ```{r dispersion_continente_boxplot, message=FALSE, warning=FALSE}
-ggplot(disp_cont_resumen,
+ggplot(disp_cont,
        aes(x = Continent, y = sd_renew, fill = Continent)) +
-  geom_boxplot(alpha = 0.8, show.legend = FALSE) +  # Elimina la leyenda
+  geom_boxplot(alpha = 0.8, show.legend = FALSE) +
   labs(
     title = "Dispersión del % de renovables entre países por continente",
     subtitle = "Distribución de la desviación estándar anual (2000-2024)",
