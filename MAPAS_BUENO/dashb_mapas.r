@@ -14,30 +14,32 @@ library(plotly)
 library(RColorBrewer)
 
 # ==============================================================================
-# 1. CONFIGURACIÓN TÉCNICA Y TEXTOS (OWID / Cita Oficial)
+# 1. CONFIGURACIÓN TÉCNICA, COLORES Y PALETAS
 # ==============================================================================
 
-# Paleta de alto contraste profesional
+# Colores principales (Líneas y Gráficas)
 cols_pal <- list(
-  Solar = "#FFC107", # Amber 500
-  Wind  = "#00BCD4", # Cyan 500
-  Hydro = "#1565C0", # Blue 800
-  Bio   = "#2E7D32", # Green 800
-  Geo   = "#D84315"  # Deep Orange 800
+  Solar = "#FFC107", # Amber
+  Wind  = "#00BCD4", # Cyan
+  Hydro = "#1565C0", # Blue Dark
+  Bio   = "#2E7D32", # Green Dark
+  Geo   = "#D84315"  # Deep Orange
 )
 
-# Función auxiliar para generar relleno con transparencia (mismo tono que la línea)
-to_rgba <- function(hex, alpha = 0.2) {
+# AJUSTE DE VISIBILIDAD: Subimos la opacidad de 0.2 a 0.6 para colores vibrantes
+to_rgba <- function(hex, alpha = 0.6) {
   rgb_vals <- col2rgb(hex)
   paste0("rgba(", rgb_vals[1], ",", rgb_vals[2], ",", rgb_vals[3], ",", alpha, ")")
 }
 
+# CONFIGURACIÓN MAESTRA
 cols_def <- list(
   Solar = list(
     gen = "Solar.generation...TWh..modern.renewable.energy.consumption.",
     share = "Solar.....electricity..share.electricity.solar.",
     color = cols_pal$Solar,
-    fill  = to_rgba(cols_pal$Solar, 0.2),
+    fill  = to_rgba(cols_pal$Solar), # Ahora usa 0.6 por defecto
+    map_palette = "YlOrRd",
     icon = "sun",
     metric_label = "Generación Eléctrica Solar",
     desc = "Electricidad producida mediante tecnología fotovoltaica (PV). El dato corresponde a la generación eléctrica neta (output), no a la energía primaria equivalente."
@@ -46,7 +48,8 @@ cols_def <- list(
     gen = "Wind.generation...TWh..modern.renewable.energy.consumption.",
     share = "Wind.....electricity..share.electricity.wind.",
     color = cols_pal$Wind,
-    fill  = to_rgba(cols_pal$Wind, 0.2),
+    fill  = to_rgba(cols_pal$Wind),
+    map_palette = "PuBu",
     icon = "wind",
     metric_label = "Generación Eléctrica Eólica",
     desc = "Electricidad generada por el viento. Incluye la producción de parques eólicos tanto en tierra (onshore) como en mar (offshore)."
@@ -55,7 +58,8 @@ cols_def <- list(
     gen = "Hydro.generation...TWh..modern.renewable.energy.consumption.",
     share = "Hydro.....electricity..share.electricity.hydro.",
     color = cols_pal$Hydro,
-    fill  = to_rgba(cols_pal$Hydro, 0.2),
+    fill  = to_rgba(cols_pal$Hydro),
+    map_palette = "GnBu",
     icon = "water",
     metric_label = "Generación Hidroeléctrica",
     desc = "Electricidad generada por centrales hidroeléctricas (de embalse y de pasada). Excluye la energía hidroeléctrica de bombeo puro."
@@ -64,7 +68,8 @@ cols_def <- list(
     gen = "Biofuels.production...TWh..biofuel.production.",
     share = NULL, 
     color = cols_pal$Bio,
-    fill  = to_rgba(cols_pal$Bio, 0.2),
+    fill  = to_rgba(cols_pal$Bio),
+    map_palette = "YlGn",
     icon = "leaf",
     metric_label = "Producción de Biocombustibles",
     desc = "Producción de combustibles líquidos (bioetanol y biodiesel). Nota: La unidad TWh aquí representa el contenido energético del combustible, no electricidad generada."
@@ -73,26 +78,29 @@ cols_def <- list(
     gen = "Other.renewables..including.geothermal.and.biomass..electricity.generation...TWh..modern.renewable.energy.consumption.",
     share = NULL, 
     color = cols_pal$Geo,
-    fill  = to_rgba(cols_pal$Geo, 0.2),
+    fill  = to_rgba(cols_pal$Geo),
+    map_palette = "OrRd",
     icon = "fire",
-    metric_label = "Generación Eléctrica (Otras)",
+    metric_label = "Geotérmica, Biomasa y Otros",
     desc = "Electricidad generada a partir de biomasa sólida (madera/residuos), energía geotérmica y tecnologías marinas (mareomotriz/undimotriz)."
   )
 )
 
 # ==============================================================================
-# 2. CARGA DE DATOS
+# 2. CARGA Y PROCESAMIENTO DE DATOS
 # ==============================================================================
 
 er_data <- read.csv("cruce_er_cf.csv")
 pred_data <- read.csv("predicciones_world_fossil_renew_lstm_train_test.csv")
 
+# Limpieza y Geocodificación
 er_clean <- er_data %>%
   mutate(
     iso3 = countrycode(Entity, origin = "country.name", destination = "iso3c", warn = FALSE),
     Is_Country = !is.na(iso3)
   )
 
+# Datos Mundiales
 if ("World" %in% er_clean$Entity) {
   er_world <- er_clean %>% filter(Entity == "World")
 } else {
@@ -103,6 +111,7 @@ if ("World" %in% er_clean$Entity) {
     mutate(Entity = "World")
 }
 
+# Geometría del Mundo
 world_sf <- ne_countries(scale = "medium", returnclass = "sf") %>% select(iso_a3, geometry)
 
 # ==============================================================================
@@ -120,10 +129,12 @@ energy_block_ui <- function(id, title, color, icon_name, description, has_share,
       div(class = "card-body bg-light",
           layout_columns(
             col_widths = c(3, 9),
+            # Columna Izquierda: Filtros
             div(class="p-3 bg-white rounded shadow-sm h-100",
                 h5("Filtros", class="border-bottom pb-2"),
                 uiOutput(ns("slider_ui"))
             ),
+            # Columna Derecha: Mapa
             div(class="bg-white rounded shadow-sm p-3",
                 tabsetPanel(id = ns("tabs_metric"),
                             tabPanel(paste(metric_label_text, "(TWh)"), value = "gen",
@@ -136,11 +147,11 @@ energy_block_ui <- function(id, title, color, icon_name, description, has_share,
             )
           ),
           br(),
+          # Fila de Gráficas
           layout_columns(
             col_widths = c(4, 4, 4),
             card(card_header("Tendencia Mundial"), plotlyOutput(ns("plot_world"), height = "250px")),
-            # Título Actualizado
-            card(card_header("Top 5 (Evolución Comparada)"), plotlyOutput(ns("plot_top5"), height = "250px")),
+            card(card_header("Top 5 (Trayectoria Histórica)"), plotlyOutput(ns("plot_top5"), height = "250px")),
             card(card_header(textOutput(ns("country_title"))), plotlyOutput(ns("plot_country"), height = "250px"))
           )
       )
@@ -153,7 +164,7 @@ ui <- fluidPage(
     .leaflet-container { background: #f0f2f5; } 
     .legend { font-size: 11px; padding: 8px; background: rgba(255,255,255,0.95); border-radius: 4px; border: 1px solid #eee; }
     .card-header { font-weight: bold; font-size: 1rem; color: #2c3e50; background-color: #fff; }
-    .leaflet-tooltip { font-family: sans-serif; font-size: 12px; font-weight: bold; color: #333; background: rgba(255,255,255,0.9); border: 1px solid #ccc; }
+    .leaflet-tooltip { font-family: sans-serif; font-size: 12px; font-weight: bold; color: #333; background: rgba(255,255,255,0.9); border: 1px solid #ccc; border-radius: 4px;}
   "))),
   
   div(class = "container-fluid py-5 text-center bg-white shadow-sm mb-4",
@@ -194,7 +205,7 @@ ui <- fluidPage(
       energy_block_ui("geo", "Geotérmica y Otros", cols_def$Geo$color, "fire", cols_def$Geo$desc, FALSE, cols_def$Geo$metric_label)
   ),
   
-  # --- PIE DE PÁGINA CON CITA OFICIAL ---
+  # --- CITA OFICIAL ---
   div(class="container-fluid py-4 mt-5 bg-light text-center border-top",
       p(class="mb-1 text-muted small", style="font-weight: 600;", 
         "Información obtenida de:"),
@@ -204,7 +215,7 @@ ui <- fluidPage(
 )
 
 # ==============================================================================
-# 4. SERVIDOR (LOGICA)
+# 4. SERVIDOR (LÓGICA)
 # ==============================================================================
 
 energy_server_logic <- function(id, tech_key, data_full, world_geo) {
@@ -213,16 +224,16 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
     conf <- cols_def[[tech_key]]
     selected_iso <- reactiveVal("MEX") 
     
+    # Actualizar selección de país
     observeEvent(input$map_gen_shape_click, { if(!is.null(input$map_gen_shape_click$id)) selected_iso(input$map_gen_shape_click$id) })
     observeEvent(input$map_share_shape_click, { if(!is.null(input$map_share_shape_click$id)) selected_iso(input$map_share_shape_click$id) })
     
     output$country_title <- renderText({
       req(selected_iso())
       nm <- data_full %>% filter(iso3 == selected_iso()) %>% pull(Entity) %>% unique()
+      if(length(nm) == 0) return("Seleccione un País")
       paste("Evolución Histórica:", nm[1])
     })
-    
-    active_metric <- reactive({ if(is.null(input$tabs_metric)) "gen" else input$tabs_metric })
     
     # Slider con Play
     output$slider_ui <- renderUI({
@@ -231,7 +242,7 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
                   animate = animationOptions(interval = 800, loop = FALSE))
     })
     
-    # MAPA SÁNDWICH V2 (USO DE TOOLTIPS EN VEZ DE LABELS DIRECTOS PARA EVITAR CONFLICTOS)
+    # MAPA (PANELES Y PALETAS)
     render_custom_map <- function(type) {
       renderLeaflet({
         req(input$year)
@@ -242,74 +253,65 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
         geo <- world_geo %>% left_join(map_dat, by = c("iso_a3" = "iso3"))
         vals <- geo$Val
         
+        # Paleta Temática Dinámica
         if(type == "gen") {
           bins <- c(0, 1, 10, 50, 100, 500, Inf)
-          pal <- colorBin("YlGnBu", domain = vals, bins = bins, na.color = "#ffffff") 
+          pal <- colorBin(conf$map_palette, domain = vals, bins = bins, na.color = "#ffffff") 
         } else {
           bins <- c(0, 1, 5, 10, 20, 50, 100)
-          pal <- colorBin("PuBuGn", domain = vals, bins = bins, na.color = "#ffffff")
+          pal <- colorBin(conf$map_palette, domain = vals, bins = bins, na.color = "#ffffff")
         }
         
-        # Contenido HTML del Tooltip
-        tooltip_content <- sprintf(
-          "<strong>%s</strong><br/>%s",
-          geo$Entity,
-          ifelse(is.na(geo$Val), "Sin Información", paste0(format(round(geo$Val, 2), big.mark=","), " ", unit))
-        ) %>% lapply(HTML)
+        tooltip_content <- sprintf("<strong>%s</strong><br/>%s", geo$Entity,
+                                   ifelse(is.na(geo$Val), "Sin Información", paste0(format(round(geo$Val, 2), big.mark=","), " ", unit))) %>% lapply(HTML)
         
         leaflet(geo) %>%
           setMaxBounds(-180, -90, 180, 90) %>%
+          addMapPane("fondo", zIndex = 400) %>%
+          addMapPane("datos", zIndex = 450) %>%
+          addMapPane("etiquetas", zIndex = 500) %>%
           
-          # 1. Capa Base limpia (Fondo)
-          addProviderTiles("CartoDB.PositronNoLabels", options = providerTileOptions(noWrap = TRUE)) %>%
+          addProviderTiles("CartoDB.PositronNoLabels", options = providerTileOptions(noWrap = TRUE, pane = "fondo")) %>%
           
-          # 2. Polígonos (Datos) - SIN LABELS AQUI
           addPolygons(
             fillColor = ~pal(Val), weight = 1, color = "white", opacity = 1, fillOpacity = 0.85,
             layerId = ~iso_a3,
-            highlightOptions = highlightOptions(weight = 2, color = "#444", bringToFront = FALSE),
-            # Usamos TOOLTIP en lugar de label para mejor control de capas y z-index
+            options = pathOptions(pane = "datos"),
+            highlightOptions = highlightOptions(weight = 2, color = "#444", bringToFront = TRUE),
             label = tooltip_content,
-            labelOptions = labelOptions(
-              style = list("font-weight" = "normal", padding = "3px 8px"),
-              textsize = "13px",
-              direction = "auto",
-              offset = c(0, 0),
-              opacity = 0.9,
-              permanent = FALSE # Solo al pasar el mouse (hover)
-            )
+            labelOptions = labelOptions(direction = "auto")
           ) %>%
           
-          # 3. Etiquetas Geográficas (Nombres Países) - ENCIMA DE TODO
-          addProviderTiles("CartoDB.PositronOnlyLabels", options = providerTileOptions(noWrap = TRUE, zIndex = 650)) %>%
-          
+          addProviderTiles("CartoDB.PositronOnlyLabels", options = providerTileOptions(noWrap = TRUE, pane = "etiquetas")) %>%
           setView(0, 20, 1.5) %>%
           addLegend(pal = pal, values = vals, title = unit, position = "bottomright", na.label = "Sin Info")
       })
     }
+    
     output$map_gen <- render_custom_map("gen")
     output$map_share <- render_custom_map("share")
     
-    # GRÁFICA MUNDIAL (FILLCOLOR CORREGIDO)
+    # GRÁFICA MUNDIAL (COLORES VIBRANTES 0.6 ALPHA)
     output$plot_world <- renderPlotly({
-      col_name <- if(active_metric() == "gen") conf$gen else conf$share
-      unit <- if(active_metric() == "gen") "TWh" else "%"
+      active_tab <- if(is.null(input$tabs_metric)) "gen" else input$tabs_metric
+      col_name <- if(active_tab == "gen") conf$gen else conf$share
+      unit <- if(active_tab == "gen") "TWh" else "%"
+      
       w_dat <- er_world %>% select(Year, Val = all_of(col_name)) %>% arrange(Year)
       
       plot_ly(w_dat, x = ~Year, y = ~Val, type = 'scatter', mode = 'lines+markers', 
-              fill = 'tozeroy',
-              fillcolor = conf$fill, # Uso explícito del color RGBA transparente
-              marker = list(size = 3, color = conf$color), 
-              line = list(color = conf$color, width = 2.5),
+              fill = 'tozeroy', fillcolor = conf$fill, 
+              marker = list(size = 3, color = conf$color), line = list(color = conf$color, width = 2.5),
               hovertemplate = paste0("<b>%{x}</b>: %{y:,.1f} ", unit, "<extra></extra>")) %>%
         layout(title = "", xaxis = list(title = ""), yaxis = list(title = unit))
     })
     
-    # TOP 5 (EVOLUCIÓN COMPARADA)
+    # TOP 5
     output$plot_top5 <- renderPlotly({
       req(input$year)
-      col_name <- if(active_metric() == "gen") conf$gen else conf$share
-      unit <- if(active_metric() == "gen") "TWh" else "%"
+      active_tab <- if(is.null(input$tabs_metric)) "gen" else input$tabs_metric
+      col_name <- if(active_tab == "gen") conf$gen else conf$share
+      unit <- if(active_tab == "gen") "TWh" else "%"
       
       top_iso <- data_full %>% filter(Year == input$year, Is_Country) %>% arrange(desc(.data[[col_name]])) %>% head(5) %>% pull(iso3)
       if(length(top_iso) == 0) return(plotly_empty())
@@ -322,19 +324,19 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
         layout(title = "", xaxis = list(title = ""), yaxis = list(title = unit), legend = list(orientation="h", y=-0.2))
     })
     
-    # PAÍS (FILLCOLOR CORREGIDO)
+    # PAÍS (COLORES VIBRANTES)
     output$plot_country <- renderPlotly({
       req(selected_iso())
-      col_name <- if(active_metric() == "gen") conf$gen else conf$share
-      unit <- if(active_metric() == "gen") "TWh" else "%"
+      active_tab <- if(is.null(input$tabs_metric)) "gen" else input$tabs_metric
+      col_name <- if(active_tab == "gen") conf$gen else conf$share
+      unit <- if(active_tab == "gen") "TWh" else "%"
+      
       c_dat <- data_full %>% filter(iso3 == selected_iso()) %>% arrange(Year)
       if(nrow(c_dat) == 0) return(plotly_empty())
       
       plot_ly(c_dat, x = ~Year, y = ~get(col_name), type = 'scatter', mode = 'lines+markers',
-              fill = 'tozeroy',
-              fillcolor = conf$fill,
-              line = list(color = conf$color, width = 2.5), 
-              marker = list(size = 4, color = conf$color),
+              fill = 'tozeroy', fillcolor = conf$fill,
+              line = list(color = conf$color, width = 2.5), marker = list(size = 4, color = conf$color),
               hovertemplate = paste0("<b>%{x}</b>: %{y:,.2f} ", unit, "<extra></extra>")) %>%
         layout(title = "", xaxis = list(title = ""), yaxis = list(title = unit))
     })
@@ -343,7 +345,7 @@ energy_server_logic <- function(id, tech_key, data_full, world_geo) {
 
 server <- function(input, output, session) {
   
-  # PREDICCIÓN CON LÍNEA DE CORTE
+  # PREDICCIÓN
   output$forecast_plot <- renderPlotly({
     p_dat <- pred_data %>% mutate(Energy_Type = ifelse(Type == "Fossil", "Fósiles", "Renovables"))
     last_real_f <- p_dat %>% filter(Energy_Type=="Fósiles", !is.na(Real)) %>% slice_max(Year, n=1)
@@ -365,16 +367,14 @@ server <- function(input, output, session) {
                 line = list(width=3, dash='dot'),
                 name = ~paste(Energy_Type, "(Pred)"), showlegend = FALSE) %>%
       layout(
-        yaxis = list(title = "Participación en Energía Primaria (%)"), 
-        xaxis = list(title = "Año"), 
-        hovermode = "x unified",
+        yaxis = list(title = "Participación (%)"), xaxis = list(title = "Año"), hovermode = "x unified",
         shapes = list(list(type = "line", x0 = cut_year, x1 = cut_year, y0 = 0, y1 = 1, yref = "paper",
                            line = list(color = "gray", width = 1, dash = "dash"))),
         annotations = list(list(x = cut_year, y = 0.05, text = "Inicio Proyección", showarrow = FALSE, xanchor = "right", yref="paper", font=list(size=10, color="gray")))
       )
   })
   
-  # HISTORIA GLOBAL (Filtro estricto de Ceros)
+  # HISTORIA GLOBAL (FILTRO TWh != 0)
   global_long <- reactive({
     er_world %>%
       select(Year, Solar = cols_def$Solar$gen, Eólica = cols_def$Wind$gen, Hidro = cols_def$Hydro$gen, 
@@ -383,9 +383,11 @@ server <- function(input, output, session) {
       filter(TWh != 0) %>% arrange(Year)
   })
   
+  # AJUSTE: Slider Global con valor por defecto al MÁXIMO
   output$slider_global_ui <- renderUI({
     dat <- global_long()
-    sliderInput("anim_year", "Año:", min = min(dat$Year), max = max(dat$Year), value = min(dat$Year),
+    sliderInput("anim_year", "Año:", min = min(dat$Year), max = max(dat$Year), 
+                value = max(dat$Year), # <--- POR DEFECTO EL MÁS RECIENTE
                 step = 1, sep = "", animate = animationOptions(interval = 600, loop = FALSE))
   })
   
@@ -393,22 +395,16 @@ server <- function(input, output, session) {
     req(input$anim_year)
     dat <- global_long() %>% filter(Year <= input$anim_year) %>% arrange(Year)
     
-    cols_g <- c("Solar"=cols_def$Solar$color, "Eólica"=cols_def$Wind$color, 
-                "Hidro"=cols_def$Hydro$color, "Bio"=cols_def$Bio$color, "Geo"=cols_def$Geo$color)
-    
-    fills_g <- c("Solar"=cols_def$Solar$fill, "Eólica"=cols_def$Wind$fill, 
-                 "Hidro"=cols_def$Hydro$fill, "Bio"=cols_def$Bio$fill, "Geo"=cols_def$Geo$fill)
+    cols_g <- c("Solar"=cols_def$Solar$color, "Eólica"=cols_def$Wind$color, "Hidro"=cols_def$Hydro$color, "Bio"=cols_def$Bio$color, "Geo"=cols_def$Geo$color)
+    fills_g <- c("Solar"=cols_def$Solar$fill, "Eólica"=cols_def$Wind$fill, "Hidro"=cols_def$Hydro$fill, "Bio"=cols_def$Bio$fill, "Geo"=cols_def$Geo$fill)
     
     p <- plot_ly()
     for(src in names(cols_g)) {
       d_src <- dat %>% filter(Fuente == src)
       if(nrow(d_src) > 0) {
-        p <- p %>% add_trace(data = d_src, x = ~Year, y = ~TWh, 
-                             type = 'scatter', mode = 'lines+markers',
-                             name = src,
-                             line = list(color = cols_g[[src]], width = 2.5),
-                             fill = 'tozeroy',
-                             fillcolor = fills_g[[src]], 
+        p <- p %>% add_trace(data = d_src, x = ~Year, y = ~TWh, type = 'scatter', mode = 'lines+markers',
+                             name = src, line = list(color = cols_g[[src]], width = 2.5),
+                             fill = 'tozeroy', fillcolor = fills_g[[src]], # Relleno vibrante (0.6)
                              marker = list(size = 3, color = cols_g[[src]]),
                              hovertemplate = "%{y:,.0f} TWh<extra></extra>")
       }
