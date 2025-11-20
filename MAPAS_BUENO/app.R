@@ -262,7 +262,7 @@ div(class = "container-fluid px-4 mb-5",
                 # ==========================================================
                 # TAB 3 - VISIÓN GLOBAL + SIDEBAR
                 # ==========================================================
-                tabPanel("Visión global de las energías renovables",
+                tabPanel("Resumen Global y Tendencias por Región",
 
                     fluidRow(
 
