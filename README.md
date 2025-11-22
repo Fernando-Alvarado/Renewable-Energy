@@ -32,7 +32,7 @@ RENEWABLE-ENERGY/
 │
 ├── ShinyApp/                        # Carpeta de PRODUCCIÓN del Dashboard (Despliegue)
 
-
+```
 
 ## 3. Tecnologías Utilizadas
 
