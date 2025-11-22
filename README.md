@@ -29,10 +29,9 @@ RENEWABLE-ENERGY/
 │
 ├── Procesamiento/                   # Códigos para procesar la información y generar variables y tablas nuevas
 │
-├── Modelos/                   # Códigos de modelos predictivos
-│
 ├── ShinyApp/                        # Carpeta de PRODUCCIÓN del Dashboard (Despliegue)
-
+|
+├── models/                   # Códigos de modelos predictivos
 ```
 
 ## 4. Tecnologías Utilizadas
